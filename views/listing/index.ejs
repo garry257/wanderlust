@@ -1,0 +1,86 @@
+<% layout("/layouts/boilerplate") %>
+<div class="container">
+  <div class="row mb-4">
+    <div class="col-12">
+      <form class="row g-3 align-items-end" method="GET" action="/listing">
+        <div class="col-md-4">
+          <label for="searchQuery" class="form-label">Search listings</label>
+          <input type="text" class="form-control" id="searchQuery" name="q" placeholder="Title, location or country" value="<%= filters?.q || '' %>">
+        </div>
+        <div class="col-md-2">
+          <label for="minPrice" class="form-label">Min price</label>
+          <input type="number" class="form-control" id="minPrice" name="minPrice" min="0" placeholder="₹0" value="<%= filters?.minPrice || '' %>">
+        </div>
+        <div class="col-md-2">
+          <label for="maxPrice" class="form-label">Max price</label>
+          <input type="number" class="form-control" id="maxPrice" name="maxPrice" min="0" placeholder="₹0" value="<%= filters?.maxPrice || '' %>">
+        </div>
+        <div class="col-md-2">
+          <label for="country" class="form-label">Country</label>
+          <input type="text" class="form-control" id="country" name="country" placeholder="India" value="<%= filters?.country || '' %>">
+        </div>
+        <div class="col-md-2 d-flex align-items-center">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="taxSwitch" name="includeTax" <%= filters?.includeTax ? 'checked' : '' %>>
+            <label class="form-check-label" for="taxSwitch">Include tax</label>
+          </div>
+        </div>
+        <div class="col-md-12 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Search</button>
+          <a href="/listing" class="btn btn-outline-secondary">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row row-cols-lg-3 row-cols-md-2 row-cols-sm-1">
+    <% if (!allListings.length) { %>
+      <div class="col-12">
+        <div class="alert alert-info">No listings match the current search or filters.</div>
+      </div>
+    <% } %>
+    <% for (let listing of allListings) { %>
+      <% const basePrice = Number(listing.price || 0); %>
+      <div class="col mb-4">
+        <a href="/listing/<%= listing._id %>" class="text-decoration-none listing-link">
+          <div class="card h-100 shadow-sm">
+            <img src="<%= listing.image?.url || '/uploads/default.jpg' %>" class="card-img-top" alt="listing image" style="height:20rem; object-fit:cover;">
+            <div class="card-body">
+              <h5 class="card-title"><%= listing.title %></h5>
+              <p class="card-text mb-2"><%= listing.location || listing.country || 'Unknown location' %></p>
+              <p class="card-text listing-price" data-price="<%= basePrice %>" data-tax-rate="0.18">
+                ₹ <span><%= filters?.includeTax ? Math.round(basePrice * 1.18).toLocaleString('en-IN') : basePrice.toLocaleString('en-IN') %></span> <small class="text-muted">/night</small>
+              </p>
+              <% if (filters?.includeTax) { %>
+                <p class="text-muted small">Price includes 18% tax.</p>
+              <% } %>
+            </div>
+          </div>
+        </a>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const taxSwitch = document.getElementById('taxSwitch');
+    const priceElements = document.querySelectorAll('.listing-price');
+    const taxRate = 0.18;
+
+    function updatePrices(showTax) {
+      priceElements.forEach(el => {
+        const basePrice = Number(el.dataset.price || 0);
+        const display = showTax ? Math.round(basePrice * (1 + taxRate)) : basePrice;
+        el.querySelector('span').textContent = display.toLocaleString('en-IN');
+      });
+    }
+
+    if (taxSwitch) {
+      taxSwitch.addEventListener('change', function () {
+        updatePrices(taxSwitch.checked);
+      });
+      updatePrices(taxSwitch.checked);
+    }
+  });
+</script>

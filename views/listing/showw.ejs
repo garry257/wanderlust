@@ -1,0 +1,123 @@
+<% layout("/layouts/boilerplate") %>
+<div class="row mt-3">
+    <div class="col-8 offset-3">
+        <h3><%= listing.title %></h3>
+    </div>
+
+    <div class="card col-6 offset-3 show-card">
+        <img src="<%= listing.image.url %>" class="card-img-top show-img" alt="listing">
+        <div class="card-body">
+            <p class="card-text"><i>Owned by <%= listing.owner ? listing.owner.username : 'Unknown' %></i></p>
+            <p class="card-text">
+                <%= listing.description %><br>
+                ₹ <%= listing.price.toLocaleString("en-In") %><br>
+                <%= listing.location %><br>
+                <%= listing.country %><br>
+            </p>
+        </div>
+    </div>
+
+    <!-- Map Section -->
+    <div class="col-6 offset-3 mt-4 mb-3">
+        <h4>Where you'll be</h4>
+        <div id="map" style="height: 350px; border-radius: 12px; border: 2px solid #dee2e6; z-index: 1;"></div>
+        <p class="text-muted mt-2"><%= listing.location %>, <%= listing.country %></p>
+    </div>
+
+    </div>
+      <% if (currUser && listing.owner && currUser._id.equals(listing.owner._id)) { %>
+      <div class="btns">
+        <a href="/listing/<%= listing._id %>/edit" class="btn btn-dark col-1 offset-3 editbtn">Edit</a>
+        <form method="post" action="/listing/<%= listing._id %>?_method=delete">
+          <button class="btn btn-dark offset-2">Delete</button>
+        </form>
+      </div>
+      <% } %>
+       <div class="col-8 offset-3 mb-3">
+           <hr />
+           <% if (listing.reviews.length > 0) { %>
+               <h4 class="mb-3">All Reviews</h4>
+               <div class="row">
+                   <% for(review of listing.reviews) { %>
+                       <div class="card col-5 ms-3 mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">@<%= review.author ? review.author.username : 'Anonymous' %></h5>
+                                <p class="card-text"><%= review.comment %></p>
+                                <p class="card-text">
+                                    <% for(let i = 1; i <= 5; i++) { %>
+                                        <i class="fa-<%= i <= review.rating ? 'solid' : 'regular' %> fa-star text-warning"></i>
+                                    <% } %>
+                                </p>
+                                <% if (currUser && review.author && currUser._id.equals(review.author._id)) { %>
+                                <form class="mb-3" method="POST" action="/listing/<%= listing._id %>/reviews/<%= review._id %>?_method=DELETE">
+                                    <button class="btn btn-sm btn-dark">Delete</button>
+                                </form>
+                                <% } %>
+                            </div>
+                       </div>
+                   <% } %>
+               </div>
+               <hr />
+           <% } %>
+   
+           <% if (currUser) { %>
+           <h4>Leave a Review</h4>
+           <form method="POST" action="/listing/<%= listing._id %>/reviews" novalidate class="needs-validation">
+   
+                <div class="mb-3 mt-3">
+            
+                    <label for="rating" class="form-label">Rating</label>
+               <input type="range" min="1" max="5" id="rating" name="review[rating]" class="form-range">
+               </div>
+               <div class="mb-3 mt-3">
+                   <label for="comment" class="form-label">Comments</label>
+                   <textarea name="review[comment]" id="comment" cols="30" rows="5" class="form-control" required></textarea>
+                   <div class="invalid-feedback">Please submit some comments for the review.</div>
+               </div>
+               <button class="btn btn-outline-dark">Submit</button>
+              
+   
+           </form>
+           <% } %>
+       </div>
+
+<script>
+    // Map initialization
+    const coordinates = <%- JSON.stringify(listing.geometry ? listing.geometry.coordinates : [0, 0]) %>;
+    let lng = coordinates[0];
+    let lat = coordinates[1];
+    const locationName = "<%- listing.location %>";
+    const countryName = "<%- listing.country %>";
+
+    function renderMap(latitude, longitude) {
+        const map = L.map('map').setView([latitude, longitude], 13);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const marker = L.marker([latitude, longitude]).addTo(map);
+        marker.bindPopup(`<b>Welcome to Wanderlust!</b><br>${locationName}`).openPopup();
+    }
+
+    // Show map if we have valid coordinates, else try client-side geocoding
+    if (lat !== 0 || lng !== 0) {
+        renderMap(lat, lng);
+    } else {
+        const query = encodeURIComponent(`${locationName}, ${countryName}`);
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    renderMap(parseFloat(data[0].lat), parseFloat(data[0].lon));
+                } else {
+                    document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;"><p>Map not available for this location</p></div>';
+                }
+            })
+            .catch(err => {
+                console.error("Geocoding failed:", err);
+                document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;"><p>Map not available for this location</p></div>';
+            });
+    }
+</script>
