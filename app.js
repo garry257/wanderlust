@@ -36,17 +36,6 @@ app.use(methodOverride("_method"));
 app.engine("ejs", ejsmate);
 app.use(express.static(path.join(__dirname, "/public")));
 
-// Setup routes BEFORE database connection
-const listingRoutes = require('./routes/listing');
-const reviewRoutes = require('./routes/review');
-const userRoutes = require('./routes/users');
-
-app.use('/listing', listingRoutes);
-app.use('/listing', reviewRoutes); // review routes nested under /listing
-app.use('/', userRoutes); // signup, login, logout routes
-
-app.get("/", wrapAsync(listingController.index));
-
 // Ensure templates always have a defined `currUser` variable to avoid
 // ReferenceError in EJS when checking `if (!currUser)`.
 app.locals.currUser = null;
@@ -75,7 +64,7 @@ async function main() {
   const store = MongoStore.create({
     mongoUrl: MONGO_URL,
     crypto: {
-      secret: "mysupersecretcode",
+      secret: process.env.SECRET || "mysupersecretcode",
     },
     touchAfter: 24 * 3600,
   });
@@ -86,7 +75,7 @@ async function main() {
 
   const sessionoptions = {
     store,
-    secret: "mysupersecretcode",
+    secret: process.env.SECRET || "mysupersecretcode",
     resave: false,
     saveUninitialized: true,
     cookie: {
@@ -116,6 +105,17 @@ async function main() {
      next();
   });
 
+  // Setup routes AFTER session, flash, and passport
+  const listingRoutes = require('./routes/listing');
+  const reviewRoutes = require('./routes/review');
+  const userRoutes = require('./routes/users');
+
+  app.use('/listing', listingRoutes);
+  app.use('/listing', reviewRoutes); // review routes nested under /listing
+  app.use('/', userRoutes); // signup, login, logout routes
+
+  app.get("/", wrapAsync(listingController.index));
+
   app.use((req, res, next) => {
       next(new ExpressError(404, "Page Not Found!"));
   });
@@ -136,30 +136,4 @@ main()
   .catch((err) => {
     console.error("Fatal error:", err);
     process.exit(1);
-  });
-
-
-//  app.get("/testlisting",async(req,res)=>{
-//    let samplelisting = new listing({
-//     title:"my new villa",
-//     description:"by the beach",
-//     price:1200,
-//     location:"calangute, goa",
-//     country:"india",
-//    });
-//     await samplelisting.save();
-//     console.log("sample was saved");
-//     res.send("successfull");
-//       });
-
-
-app.get("/", wrapAsync(listingController.index));
-
-app.all("*path", (req, res, next) => {
-    next(new ExpressError(404, "Page Not Found!"));
-});
-
-app.use((err, req, res, next) => {
-    let { statuscode = 500, message = "Something went wrong!" } = err;
-    res.status(statuscode).render("error.ejs", { message });
-});
+  });
