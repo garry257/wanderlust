@@ -50,10 +50,10 @@
               <p class="card-text mb-2"><%= listing.location || listing.country || 'Unknown location' %></p>
               <p class="card-text listing-price" data-price="<%= basePrice %>" data-tax-rate="0.18">
                 ₹ <span><%= filters?.includeTax ? Math.round(basePrice * 1.18).toLocaleString('en-IN') : basePrice.toLocaleString('en-IN') %></span> <small class="text-muted">/night</small>
+                <i class="tax-info text-muted" style="font-size: 0.85rem; display: <%= filters?.includeTax ? 'inline' : 'none' %>;">
+                  <br>&nbsp;&nbsp;<i class="fa-solid fa-calculator"></i> + ₹ <%= Math.round(basePrice * 0.18).toLocaleString('en-IN') %> GST (18%)
+                </i>
               </p>
-              <% if (filters?.includeTax) { %>
-                <p class="text-muted small">Price includes 18% tax.</p>
-              <% } %>
             </div>
           </div>
         </a>
@@ -73,6 +73,17 @@
         const basePrice = Number(el.dataset.price || 0);
         const display = showTax ? Math.round(basePrice * (1 + taxRate)) : basePrice;
         el.querySelector('span').textContent = display.toLocaleString('en-IN');
+        
+        const taxInfo = el.querySelector('.tax-info');
+        if (taxInfo) {
+          if (showTax) {
+            taxInfo.style.display = 'inline';
+            const taxAmount = Math.round(basePrice * taxRate);
+            taxInfo.innerHTML = '<br>&nbsp;&nbsp;<i class="fa-solid fa-calculator"></i> + ₹ ' + taxAmount.toLocaleString('en-IN') + ' GST (18%)';
+          } else {
+            taxInfo.style.display = 'none';
+          }
+        }
       });
     }
 
