@@ -14,11 +14,9 @@ const wrapAsync = require("./utils/wrapasync.js");
 const ExpressError = require("./utils/expresserror.js");
 const {listingSchema, reviewSchema}= require("./schema.js");
 const review = require("./models/review.js");
-const session = require("express-session");
-const MongoStore = require("connect-mongo").MongoStore;
-const flash  = require("connect-flash");
-const passport = require("passport");
-const LocalStrategy = require("passport-local");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET || "mysupersecretcode";
 const User = require("./models/user.js");
 const listingController = require('./controllers/listingController');
 
@@ -33,6 +31,7 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
+app.use(cookieParser());
 app.engine("ejs", ejsmate);
 app.use(express.static(path.join(__dirname, "/public")));
 
@@ -60,47 +59,57 @@ async function main() {
     throw err;
   }
 
-  // Setup MongoStore AFTER database connection
-  const store = MongoStore.create({
-    mongoUrl: MONGO_URL,
-    crypto: {
-      secret: process.env.SECRET || "mysupersecretcode",
-    },
-    touchAfter: 24 * 3600,
-  });
-
-  store.on("error", function(e) {
-    console.log("session store error", e);
-  });
-
-  const sessionoptions = {
-    store,
-    secret: process.env.SECRET || "mysupersecretcode",
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
+  // Custom Session-less Cookie-based Flash Middleware
+  app.use((req, res, next) => {
+    let flashData = {};
+    if (req.cookies?.flash) {
+      try {
+        flashData = JSON.parse(req.cookies.flash);
+      } catch (err) {
+        flashData = {};
+      }
     }
-  };
+    
+    // Clear flash cookie right away
+    res.clearCookie('flash');
 
-  app.use(session(sessionoptions));
-  app.use(flash());
+    req.flash = (type, message) => {
+      if (message) {
+        const currentFlash = req.cookies?.flash ? JSON.parse(req.cookies.flash) : {};
+        if (!currentFlash[type]) currentFlash[type] = [];
+        currentFlash[type].push(message);
+        res.cookie('flash', JSON.stringify(currentFlash), { httpOnly: true, maxAge: 30000 });
+        return;
+      } else {
+        return flashData[type] || [];
+      }
+    };
+    next();
+  });
 
-  app.use(passport.initialize());
-  app.use(passport.session());
-  passport.use(new LocalStrategy(User.authenticate()));
-
-  passport.serializeUser(User.serializeUser());
-  passport.deserializeUser(User.deserializeUser());
-
-  app.use((req,res,next)=>{
+  app.use((req, res, next) => {
      res.locals.success = req.flash("success");
      res.locals.error = req.flash("error");
-     res.locals.currUser = req.user || null;
-     if (req.session.redirectUrl) {
-        res.locals.redirectUrl = req.session.redirectUrl;
+     
+     // Populate currUser from JWT token globally
+     const token = req.cookies?.token;
+     if (token) {
+       try {
+         const decoded = jwt.verify(token, JWT_SECRET);
+         res.locals.currUser = decoded;
+         req.user = decoded;
+       } catch (err) {
+         res.clearCookie('token');
+         res.locals.currUser = null;
+       }
+     } else {
+       res.locals.currUser = null;
+     }
+
+     if (req.cookies?.redirectUrl) {
+        res.locals.redirectUrl = req.cookies.redirectUrl;
+     } else {
+        res.locals.redirectUrl = null;
      }
      next();
   });
