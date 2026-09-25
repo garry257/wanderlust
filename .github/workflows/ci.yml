@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
@@ -14,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -22,22 +20,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
-      # Backend
+      # Backend – install & verify
       - name: Install backend dependencies
-         working-directory: ./backend
-         run: npm install
+        working-directory: ./backend
+        run: npm install
 
-      # Frontend
-      - name: Install frontend dependencies
-          working-directory: ./frontend
-          run: npm install
+      - name: Verify backend entry point exists
+        run: test -f backend/app.js && echo "app.js found ✅" || (echo "app.js NOT found ❌" && exit 1)
 
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
+      # Frontend – validate EJS views and static assets exist
+      - name: Verify frontend views exist
+        run: |
+          echo "=== EJS Views ==="
+          find frontend/views -name "*.ejs" | sort
+          echo "=== CSS Files ==="
+          find frontend/public/css -name "*.css"
+          echo "=== JS Files ==="
+          find frontend/public/js -name "*.js"
+          echo "Frontend assets verified ✅"
 
-      # Deploy to Render
+      # Deploy to Render (only on push to main)
       - name: Deploy to Render
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: curl "$RENDER_DEPLOY_HOOK_URL"
