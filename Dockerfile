@@ -1,20 +1,26 @@
-# Use the Node version specified in your project
+# ─────────────────────────────────────────────────────────────
+#  Wanderlust – Monorepo Dockerfile
+#  Build context: repo root (contains backend/ and frontend/)
+# ─────────────────────────────────────────────────────────────
 FROM node:24.14.1-alpine
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy package files first to cache dependencies
-COPY package*.json ./
+# Copy backend package files first (for layer caching)
+COPY backend/package*.json ./backend/
 
-# Install dependencies
-RUN npm install
+# Install backend dependencies
+RUN cd backend && npm install --omit=dev
 
-# Copy all the rest of your code files
-COPY . .
+# Copy backend source code
+COPY backend/ ./backend/
 
-# Expose port 8080 since that's what your app.js uses
+# Copy frontend assets (views + public) that Express serves at runtime
+COPY frontend/ ./frontend/
+
+# Expose port 8080 (as configured in app.js)
 EXPOSE 8080
 
-# Command to run your app
-CMD ["node", "app.js"]
+# Start the Express server from the backend directory
+CMD ["node", "backend/app.js"]
