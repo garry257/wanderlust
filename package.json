@@ -4,7 +4,9 @@
   "description": "Wanderlust – root workspace (backend + frontend)",
   "private": true,
   "scripts": {
-    "start": "cd backend && node app.js",
+    "install": "cd backend && npm install",
+    "build": "cd backend && npm install",
+    "start": "node backend/app.js",
     "dev": "cd backend && nodemon app.js"
   }
 }
