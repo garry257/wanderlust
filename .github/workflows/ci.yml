@@ -3,10 +3,10 @@ name: Wanderlust CI/CD
 on:
   push:
     branches:
-      - main
+      - '**'        # Triggers on push to ANY branch
   pull_request:
     branches:
-      - main
+      - '**'        # Triggers on PR to ANY branch
 
 jobs:
   build:
