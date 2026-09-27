@@ -1,26 +1,40 @@
 # ─────────────────────────────────────────────────────────────
-#  Wanderlust – Monorepo Dockerfile
-#  Build context: repo root (contains backend/ and frontend/)
+#  Wanderlust – Multi-stage Production Dockerfile
+#  Stage 1: Install dependencies (builder)
+#  Stage 2: Lean production image (runner)
 # ─────────────────────────────────────────────────────────────
-FROM node:24.14.1-alpine
 
-# Set the working directory inside the container
+# ── Stage 1: Builder ──────────────────────────────────────────
+FROM node:24.14.1-alpine AS builder
+
 WORKDIR /app
 
-# Copy backend package files first (for layer caching)
+# Copy package files and install ALL deps (including devDeps for build)
 COPY backend/package*.json ./backend/
-
-# Install backend dependencies
 RUN cd backend && npm install --omit=dev
 
-# Copy backend source code
-COPY backend/ ./backend/
+# ── Stage 2: Runner ───────────────────────────────────────────
+FROM node:24.14.1-alpine AS runner
 
-# Copy frontend assets (views + public) that Express serves at runtime
+# Create a non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+
+# Copy installed node_modules from builder
+COPY --from=builder /app/backend/node_modules ./backend/node_modules
+
+# Copy application source
+COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 
-# Expose port 8080 (as configured in app.js)
+# Set ownership to non-root user
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+# Expose app port
 EXPOSE 8080
 
-# Start the Express server from the backend directory
+# Start Express server
 CMD ["node", "backend/app.js"]

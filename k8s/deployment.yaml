@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wanderlust-deployment
+  namespace: wanderlust
+  labels:
+    app: wanderlust
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # one extra pod during update
+      maxUnavailable: 0  # zero downtime
+  selector:
+    matchLabels:
+      app: wanderlust
+  template:
+    metadata:
+      labels:
+        app: wanderlust
+    spec:
+      containers:
+        - name: wanderlust
+          image: gauravaa/wanderlust:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: wanderlust-config
+            - secretRef:
+                name: wanderlust-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10

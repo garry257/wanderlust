@@ -4,3 +4,4 @@ backend/.env
 .DS_Store
 npm-debug.log
 frontend/public/uploads/
+k8s/secret.yaml
